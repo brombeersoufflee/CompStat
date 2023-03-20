@@ -1,0 +1,40 @@
+
+```{r}
+library("ggplot2")
+library("tibble")
+library("bootstrap")
+library("magrittr")
+
+data(law)
+
+law %<>% add_column(observation = 1:nrow(law), .before = 1)
+
+ggplot(law, aes(x = LSAT, y = GPA)) +
+geom_text(aes(label = observation),
+hjust = 0, vjust = 0)
+
+```
+Now we create  a sample
+```{r}
+#Bootstrap count
+bootcount = 40000
+
+#calculating the raw pearson correlation coefficient
+df_boot = tibble(LSAT = numeric(), GPA = numeric() )
+pearcorrraw <- cor(law$LSAT, law$GPA, method = "pearson")
+
+#Running the bootstrap, can convert into a function later
+for (i in 1:bootcount){
+  ids <- sample(nrow(law), replace = TRUE)
+  sample <- tibble(LSAT = law$LSAT[ids], GPA = law$GPA[idqs])  
+  df_boot <- rbind(df_boot, sample)
+}
+
+pearcorboot <- cor(df_boot$LSAT, df_boot$GPA, method = "pearson")
+
+```
+
+
+
+```{r}
+```
