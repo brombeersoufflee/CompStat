@@ -26,7 +26,7 @@ pearcorrraw <- cor(law$LSAT, law$GPA, method = "pearson")
 #Running the bootstrap, can convert into a function later
 for (i in 1:bootcount){
   ids <- sample(nrow(law), replace = TRUE)
-  sample <- tibble(LSAT = law$LSAT[ids], GPA = law$GPA[idqs])  
+  sample <- tibble(LSAT = law$LSAT[ids], GPA = law$GPA[ids])  
   df_boot <- rbind(df_boot, sample)
 }
 
