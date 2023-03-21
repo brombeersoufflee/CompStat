@@ -4,6 +4,7 @@ library("ggplot2")
 library("tibble")
 library("bootstrap")
 library("magrittr")
+library("dplyr")
 
 data(law)
 
@@ -41,5 +42,27 @@ hist(x = pearboot, breaks = 50, xlab = "Pearson Correlation Coefficient Estimate
 abline(v = pearcorrraw, col = 'red')
 ```
 
+Monte Carlo Simulation:
+```{r}
+n = length(law$GPA)
+# normalise the columns
+law %<>% add_column(norm_gpa=law$GPA/max(law$GPA))
+law %<>% add_column(norm_lsat=law$LSAT/max(law$LSAT))
 
+# add a column with the difference and take the absolute value
+law %<>% add_column(diff=law$norm_gpa-law$norm_lsat)
+abs_diff = abs(law$diff)
 
+# generate random signs and assign these to the difference column
+signs = matrix(replicate(bootcount*n, sample(c(-1,1), size =1)), nrow = bootcount) %>% as_tibble
+names(signs) = paste0("x_", 1:n)
+signs %<>% mutate(t = sapply(1:nrow(signs), function(i) sum(signs[i,]*abs_diff)))
+t_obs = sum(law$diff)
+pvalue = mean(abs(signs$t) >= abs(t_obs))
+print(pvalue)
+# with bootcount=40000 the pvalue is 0.898825
+
+# plot the histogram with pvalue
+ggplot(signs, aes(t)) + geom_histogram(binwidth = 0.03) + geom_vline(xintercept = c(-t_obs, t_obs), colour = "red", size = 1.5)
+
+```
