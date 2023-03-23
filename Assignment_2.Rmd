@@ -1,12 +1,14 @@
-
 ```{r}
 library("ggplot2")
 library("tibble")
 library("bootstrap")
 library("magrittr")
 library("dplyr")
+library("partitions")
 
 data(law)
+law_red <- law
+n = dim(law_red)[1]
 
 law %<>% add_column(observation = 1:nrow(law), .before = 1)
 
@@ -14,11 +16,55 @@ ggplot(law, aes(x = LSAT, y = GPA)) +
 geom_text(aes(label = observation),
 hjust = 0, vjust = 0)
 
+
+
 ```
-Now we create  a sample
+
+# Gray code function
+
+# get the grey codes
+
 ```{r}
-#Bootstrap count
-bootcount = 4000
+
+# get the number of all possible compositions 
+allCompositions <- compositions(n,n)
+total <- dim(allCompositions)[2]
+
+# prepare a matrix that will store all possible subsets 
+arr_com <- matrix(0, nrow = total, ncol = n)
+
+get_grayCodes <- function(n, k){
+  i<-1
+  r <- array(0, n)
+  r[i] <- n
+  t <- n
+  h <- 0
+  arr_com[i, ] <- r
+  i <- i + 1
+
+  while(r[k]!=n){
+    if (t!=1){
+      h<-0
+    }
+    h <- h + 1
+    t <- r[h]
+    r[h] <- 0
+    r[1] <- t - 1
+    r[h+1] <- r[h+1] + 1
+    arr_com[i, ] <- r
+    i <- i + 1
+  }
+  return (arr_com)
+}
+
+# get the gray codes 
+gray_codes <- get_grayCodes(n,n)
+
+```
+
+Run complete enumeration - due to the fact that there are over 7 million different bootstrap subsets, here we are just running partial enumeration, with 250k possible subsets.
+
+```{r}
 
 #calculating the raw pearson correlation coefficient
 df_boot <- tibble(LSAT = numeric(), GPA = numeric() )
@@ -26,23 +72,44 @@ df_pearboot <- tibble(corr = numeric())
 pearcorrraw <- cor(law$LSAT, law$GPA, method = "pearson")
 pearboot <- numeric()
 
-#Running the bootstrap, can convert into a function later
-for (i in 1:bootcount){
-  ids <- sample(nrow(law), replace = TRUE)
-  sample <- tibble(LSAT = law$LSAT[ids], GPA = law$GPA[ids])
-  pearboot <- c(pearboot,cor(sample$LSAT, sample$GPA, method = "pearson"))
-  df_boot <- rbind(df_boot, sample) 
+# sample row ids without replacment
+fraction <- 250000
+sample_ids <- sample(total, fraction, replace=FALSE)
+sample_pointer <- 1
+
+for (i in 1:fraction){
+  
+  # array for storing the bootstrap indicies
+  ids <- array(0,0)
+  n_points <- 0
+  
+  # random row from complete enumeration
+  row_i <- sample_ids[sample_pointer]
+  sample_pointer <- sample_pointer + 1
+  for (j in 1:length(arr_com[row_i,])){
+    # skip if there are no points 
+    if (arr_com[row_i,j] == 0){
+      next
+    }
+    
+    # create a list of indicies for the subset 
+    ids <- c(ids, array(j, arr_com[row_i,j]))
+  }
+  # calculate and append the correletion coefficient for a given subset 
+  pearboot <- c(pearboot, cor(law_red[ids, ]$LSAT, law_red[ids, ]$GPA, method = "pearson"))
 }
 
-#pearcorboot <- cor(df_boot$LSAT, df_boot$GPA, method = "pearson")
 ```
 
 ```{r}
-hist(x = pearboot, breaks = 50, xlab = "Pearson Correlation Coefficient Estimate (red is true coefficient)")
+hist(x = pearboot, breaks = 50, 
+     main="correletion distribution with outliers",
+     xlab = "Pearson Correlation Coefficient Estimate (red is true coefficient)")
 abline(v = pearcorrraw, col = 'red')
 ```
 
 Monte Carlo Simulation:
+
 ```{r}
 n = length(law$GPA)
 # normalise the columns
